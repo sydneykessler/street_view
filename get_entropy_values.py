@@ -1,13 +1,33 @@
 # given fixations, outputs ave entropy value for each fixation
 
-import cv2
-import time
-import csv
-from numpy import genfromtxt
+import sys
+# print('\n'.join(sys.path))
 import numpy as np
 import pickle
 import pandas as pd
 import os
+import time
+import csv
+from numpy import genfromtxt
+# for debugging, seaborn still isn't working....
+try:
+    import seaborn as sns  # TODO: install seaborn
+except ModuleNotFoundError:
+    print('seaborn why :(')
+# have to add this to import cv2 and matplotlib and i have no idea why
+sys.path.append('/Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/site-packages')
+try:
+    import cv2  # import cv2xxx
+except ModuleNotFoundError:
+     print('cv2 epic fail :(')
+
+try:
+    from matplotlib import pyplot as plt
+    from matplotlib import animation
+except ModuleNotFoundError:
+    print(':(')
+
+sns.set()
 
 """
 ######## funcs in this file ########
@@ -15,8 +35,10 @@ get_ave_entropy:
     - gets the average normalized entropy for each frame in video (for full video) (OR gets ave luminance)
 get_min_vals:
     - gets min values for each frame in entropy videos
-reorg_fix
+reorg_fix:
     - given a file name, outputs a list of list of dicts for input into get_entropy_values
+get_one_entropy_val:
+    - given an index for a point in the original fix file, returns the entropy for that moment of fixation
 get_entropy_values:
     - gets ave entropy value for each fixation (for a subject)
 write_fix_vid:
@@ -27,6 +49,10 @@ to_grayscale:
     - given a video, outputs same video but grayscale (for luminance values)
 write_fix_vid_double:
     - like write_fix_vid, but stacks the normal + entropy view on top of each other
+get_frame_entropy_dist:
+    - given a video and frame, returns a vector of every entropy value within that frame
+write_animated_distribution:
+    - generate .mp4 animation of changing distribution of full frame + where fixation is in that distribution
 """
 
 # videos are stored elsewhere; this is the path to get to them
@@ -92,7 +118,7 @@ def get_ave_entropy(which_video, which_color):
 
         # if entropy, multiply by max value
         if which_color == "entropy":
-            this_ave = this_ave * max_vals[int(frame_num)-1]
+            this_ave = this_ave * max_vals[int(frame_num) - 1]
 
         # append to big main dataset
         ave_entropy[i] = this_ave
@@ -100,7 +126,7 @@ def get_ave_entropy(which_video, which_color):
         if i % 1000 == 0:
             print('Completed ' + str(i) + ' frames')
             pause = time.time()
-            print('Time elapsed: ' + str(pause-start))
+            print('Time elapsed: ' + str(pause - start))
 
     stop = time.time()
     timelapsed = stop - start
@@ -110,19 +136,20 @@ def get_ave_entropy(which_video, which_color):
 
 def get_min_vals(which_video):
     start = time.time()
+
     # change dir to get videos
     os.chdir(vid_path)
 
     # get video
-    if which_video:
-        video = cv2.VideoCapture('DOWNTOWN_DAY_entropy.mp4')
-        max_vals = genfromtxt('downtown_day_max_entropy.csv', delimiter=',')
-    else:
-        video = cv2.VideoCapture('DOWNTOWN_NIGHT_entropy.mp4')
-        max_vals = genfromtxt('downtown_night_max_entropy.csv', delimiter=',')
+    vid_name = 'DOWNTOWN_' + which_video.upper() + '_entropy.mp4'
+    video = cv2.VideoCapture(vid_name)
 
     # return to og dir
     os.chdir(return_path)
+
+    # get max vals
+    max_vals_name = 'downtown_' + which_video + '_max_entropy.csv'
+    max_vals = genfromtxt(max_vals_name, delimiter=',')
 
     w_video = video.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
     h_video = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
@@ -132,9 +159,9 @@ def get_min_vals(which_video):
     # init entropy array
     min_vals = np.zeros(frame_count)
     # func for calculating min
-    get_min = lambda arr, j: sum(arr)/255/3 * max_vals[j]  # where arr is array of pixel color vals, j is i
+    get_min = lambda arr, j: sum(arr) / 255 / 3 * max_vals[j-1]  # where arr is array of pixel color vals, j is i
 
-    for i in range(0, frame_count):
+    for i in range(0, 300):  # frame_count):
         # get frame
         ret, frame = video.read()
         # get minimum val of first pixel
@@ -152,7 +179,7 @@ def get_min_vals(which_video):
         if i % 1000 == 0:
             print('Completed ' + str(i) + ' frames')
             pause = time.time()
-            print('Time elapsed: ' + str(pause-start))
+            print('Time elapsed: ' + str(pause - start))
 
     stop = time.time()
     timelapsed = stop - start
@@ -205,6 +232,50 @@ def reorg_fix(file):
     timelapsed = stop - start
 
     return master, timelapsed
+
+# doesn't work yet
+def get_one_entropy_val(which_video, subNum, frame_num, x, y):
+
+    os.chdir(return_path)
+    # check to see if inputs entered right
+    if (which_video != "day") and (which_video != 'night'):
+        print('Parameter for "which_video" entered incorrectly; please type "day" or "night"')
+        quit()
+
+    frame_num = int(frame_num)
+
+    # get fixations  # tODO: need this?
+    fix_file = subNum + '_' + which_video + '_fix.csv'
+    fix = genfromtxt(fix_file, delimiter=',')
+
+    # get max vals
+    max_vals_name = 'downtown_' + which_video + '_max_entropy.csv'
+    max_vals = genfromtxt(max_vals_name, delimiter=',')
+
+    # change dir to get videos
+    os.chdir(vid_path)
+
+    # get video
+    vid_name = 'DOWNTOWN_' + which_video.upper() + '_entropy.mp4'
+    video = cv2.VideoCapture(vid_name)
+
+    # get width and height of video
+    w_video = video.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
+    h_video = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+    # set and read frame
+    video.set(1, frame_num)
+    ret, frame = video.read()
+
+    # get x and y coords adjusted to frame
+    x_coord = int(np.around((x * h_video), decimals=0))
+    y_coord = int(np.around((1-y) * w_video, decimals=0))
+
+    get_ent = lambda arr: sum(arr) / 255 / 3 * max_vals[frame_num]  # where arr is array of pixel color vals TODO: check this
+
+    entropy_val = get_ent(frame[y_coord, x_coord])  # TODO: check this
+
+    return entropy_val
 
 
 def get_entropy_values(which_video, which_color, fixations):
@@ -442,7 +513,6 @@ def to_grayscale(which_video):
     video.release()
 
 
-
 def write_fix_vid_double(subNum, which_video, time_range):
     """
     same as write_fix_vid, but with double view of entropy + regular vid at same time
@@ -499,7 +569,7 @@ def write_fix_vid_double(subNum, which_video, time_range):
 
     # set start and end frame
     start_frame = time_range[0] * 90  # times 90 since 90 is sample rate TODO: change to variable later
-    end_frame = (time_range[0]+time_range[1]) * 90
+    end_frame = (time_range[0] + time_range[1]) * 90
 
     last_ent_val = 0  # placeholder
 
@@ -509,7 +579,7 @@ def write_fix_vid_double(subNum, which_video, time_range):
         isFix = fix[0, i]
         frame_num = int(fix[3, i])
         xcord = fix[4, i]
-        ycord = 1-fix[5, i]
+        ycord = 1 - fix[5, i]
 
         # get that specific frame for each video
         ent_video.set(1, frame_num)
@@ -552,131 +622,167 @@ def write_fix_vid_double(subNum, which_video, time_range):
     print('Finished!')
 
 
+def get_frame_entropy_dist(which_video, frame_num):
+    """
+    Note: one frame takes about 3.5 seconds
+    :param which_video: str, either "day" or "night"
+    :param frame_num: int, which frame number
+    :return entropy: np array/vector about 600k long, of entropy values for every pixel in scene
+    """
+    os.chdir(return_path)
+
+    # check to see if inputs entered right
+    if (which_video != "day") and (which_video != "night"):
+        print('Parameter for "which_video" entered incorrectly; please type "day" or "night"')
+        quit()
+
+    start = time.time()
+
+    # get max values
+    max_vals_name = 'downtown_' + which_video + '_max_entropy.csv'
+    max_vals = genfromtxt(max_vals_name, delimiter=',')
+    frame_max = max_vals[frame_num]  # will only be one val since its same frame
+
+    # change dir to get videos
+    os.chdir(vid_path)
+
+    # get video
+    vid_name = 'DOWNTOWN_' + which_video.upper() + '_entropy.mp4'
+    video = cv2.VideoCapture(vid_name)
+
+    # get width and height
+    w = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))  # float
+    h = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    entropy = np.zeros(w * h)  # allocate space for every pixel in an np array
+
+    # get frame
+    video.set(1, frame_num)
+    ret, frame = video.read()
+
+    # func to get entropy
+    get_ent = lambda arr: sum(arr) / 255 / 3 * frame_max  # where arr is array of pixel color vals % TODO: ok this is definitely wrong
+
+    count = 0
+    # loop through every pixel in frame
+    for x in range(0, w):
+        for y in range(0, h):
+            # get entropy value for that pixel, put into entropy
+            ent = get_ent(frame[y, x])  #TODO: check rest of script, since frame[column, row]
+            entropy[count] = ent
+
+            count += 1  # increase count
+
+            # print count once in awhile to see where we're at
+            # if count % 100000 == 0:
+            #     print('Completed ' + str(count) + ' pixels')
+            #     pause = time.time()
+            #     print('Time elapsed: ' + str(pause - start))
+
+    # print('All done!')
+
+    return entropy
+
+# doesn't work yet
+def write_animated_distribution(which_video, subNum, start_time, how_long):
+    """
+    generate .mp4 animation of changing distribution of full frame + where fixation is in that distribution
+    :param which_video: str, "day" or "night" only
+    :param subNum: str, format of "pilot03"
+    :param start_time: int, starting point of what part of video to look at, in seconds
+    :param how_long: int, how long a portion of video to look at, in seconds
+    :return: Null
+    """
+    # get video
+    if (which_video != "day") and (which_video != "night"):
+        print('Parameter for "which_video" entered incorrectly; please type "day" or "night"')
+        quit()
+
+    start = time.time()
+
+    # set color of distribution
+    if which_video == "day":
+        dist_color = 'xkcd:red orange'
+        fix_color = 'xkcd:bright blue'
+    else:
+        dist_color = 'xkcd:night blue'
+        fix_color = 'xkcd:hot pink'
+
+    # get fixations
+    fix_file = subNum + '_' + which_video + '_fix.csv'
+    fix = genfromtxt(fix_file, delimiter=',')
+    # get max values
+    max_vals_name = 'downtown_' + which_video + '_max_entropy.csv'
+    max_vals = genfromtxt(max_vals_name, delimiter=',')
+
+    # change dir to get videos
+    os.chdir(vid_path)
+
+    # get video
+    vid_name = 'DOWNTOWN_' + which_video.upper() + '_entropy.mp4'
+    video = cv2.VideoCapture(vid_name)
+
+    # init figure
+    fig, ax = plt.subplots(figsize=(10, 6))
+    # set consistent lims so frame size doesn't change
+    ax.set_xlim(0.5, 7.5)
+    ax.set_ylim(0, 0.6)
+
+   # define interval
+    start_index = int(start_time * 90)
+    end_index = int(start_index + (how_long * 90))
+
+    def animation_frame(index):
+        plt.clf()
+        # label axes/title
+        ax.set_xlabel('Entropy')
+        ax.set_ylabel('Density')
+        ax.set_title('{which} Entropy Distribution Frame by Frame'.format(which=which_video.capitalize()), size=20)
+        # get frame number
+        frame_num = int(fix[3, index])
+        # get distribution array
+        entropy_dist = get_frame_entropy_dist(which_video, frame_num)
+        # plot
+        sns.kdeplot(entropy_dist, shade=True, color=dist_color, label='Distribution of Entropy', legend=True)
+        if fix[1, index]:
+            # get entropy
+            fix_ent = get_one_entropy_val(which_video, subNum, frame_num, fix[4, index], fix[5, index])
+            # plot entropy
+            point, = plt.plot(fix_ent, 0.015, color=fix_color, marker='*', markersize=15)
+            point.set_label('Fixation')
+
+        ax.legend(loc='upper left', facecolor='w')
+
+    # class matplotlib.animation.FuncAnimation(fig, func, frames=None, init_func=None, fargs=None,
+    #               save_count=None, *, cache_frame_data=True, ** kwargs)[source]¶
+    anim = animation.FuncAnimation(fig, func=animation_frame, frames=np.arange(start_index, end_index, 1))
+
+    writermp4 = animation.FFMpegWriter(fps=30)
+    anim_file_name = subNum + '_' + which_video + '_dist_animation.mp4'
+    anim.save(anim_file_name, writer=writermp4)
+
+    # start_frame = start_time * 30
+    # end_frame = start_frame + (how_long * 30)
+    #
+    # # for each frame
+    # for frame_num in range(start_frame, end_frame):
+    #     # get distribution array
+    #     entropy_dist = get_frame_entropy_dist(which_video, frame_num)
+    #     # get indices of possible fixations
+    #     check_these = np.where(fix[3, :] == frame_num)  # row 3 is Frame Nums
+    #     for index in check_these:
+    #         # plot distribution
+    #         sns.kdeplot(entropy_dist, shade=True, color=dist_color, label=which_video, legend=True)
+    #         # for each sample...
+    #         if fix[1, index]:
+    #             # get entropy
+    #             fix_ent = get_one_entropy_val(which_video, subNum, frame_num, fix[4, index], fix[5, index])
+    #             # plot entropy
+    #             plt.plot(fix_ent, 0, 'ro')
+
+    return
 
 
 
-######################################
-"""
-RUN TO GET REORG PICKLE AND ENTROPY VALUES FOR A SINGLE SUBJECT
-"""
-# conditions = ['day', 'night']
-# subNum = 'pilot03'
-# for each in conditions:
-#     # set file name
-#     file = subNum + '_' + each + '_fix.csv'
-#
-#     # get ordered fixations
-#     fixations, timelapsed_reorg = reorg_fix(file)
-#     fix_file_name = subNum + '_' + each + '_fix.p'
-#     pickle.dump(fixations, open(fix_file_name, "wb"))
-#     print('---- ' + each.upper() + ' ----')
-#     print('Num of Fixations: ' + str(len(fixations)))
-#     print('Reorg Time: ' + str(timelapsed_reorg))
-#
-#     # get entropy vals
-#     entropy_vals, timelapsed_ave = get_entropy_values(1, fixations)
-#     print('Ave Time: ' + str(timelapsed_ave))
-#
-#     # save to csv TODO: remove index
-#     file_name = subNum + '_' + each + '_entropy_df.csv'
-#     entropy_vals.to_csv(file_name)
-#     print('Saved in csv')
-#
-#     # save as pickle
-#     # file_name = subNum + '_' + each + '_entropy_df.p'
-#     # pickle.dump(entropy_vals, open(file_name, "wb"))
-
-# ---- DAY ----
-# Num of Fixations: 7817
-# Reorg Time: 0.6454579830169678
-# Ave Time: 247.06952595710754
-# ---- NIGHT ----
-# Num of Fixations: 5642
-# Reorg Time: 0.5103371143341064
-# Ave Time: 176.39222812652588
-
-######################################
-
-
-######################################
-"""
-RUN TO GENERATE RESIZED VIDEOS
-"""
-# for each in range(0, 2):
-#     resize_reg_vid(each, 0.5)
-
-######################################
-
-######################################
-"""
-RUN TO GENERATE GRAYSCALE VIDEOS
-"""
-# for each in range(0, 2):
-#     to_grayscale(each)
-
-######################################
-
-
-
-######################################
-"""
-RUN TO GENERATE DOUBLE VIDEOS --> in progress
-"""
-# subNum = 'pilot03'
-# start = time.time()
-# for each in range(1, 2):
-#     if each == 1:  # day
-#         time_range = (251, 20)  # start: 4:11, for 20 seconds
-#     else:  # night
-#         time_range = (244, 20)  # start: 4:04, for 20 seconds
-#     write_fix_vid_double(subNum, each, time_range)
-#     pause = time.time()
-#     print('Finished 1 vid')
-#     print('Time elapsed: ' + str(pause-start))
-# print('All done!')
-######################################
-
-
-
-######################################
-"""
-RUN TO GET OVERALL AVERAGE ENTROPY/LUMINANCE FOR VIDEOS
-"""
-# conditions = ['night', 'day']
-# 
-# for each, index in zip(conditions, range(0, 2)):  # index correlates to which_video in get_ave_entropy
-#     average_entropy, timelapsed = get_ave_entropy(index)
-#     print('Time lapsed: ' + str(timelapsed))
-#
-#     total_ave = sum(average_entropy) / len(average_entropy)
-#     print('Overall average: ' + str(total_ave))
-#
-#     file_name = each + '_ave_entropy.p'
-#     pickle.dump(average_entropy, open(file_name, "wb"))
-#     print('dumped pickle')
-
-    # file_name = each + '_ave_entropy.csv'
-    # with open(file_name, 'w') as f:
-    #     writer = csv.writer(f)
-    #     writer.writerow(average_entropy)
-    # f.close()
-    # print('wrote file')
-
-
-# DAY Overall:
-#     Time lapsed: 38893.776018857956
-#     Overall average: 5.012844093587982
-# NIGHT Overall:
-#     Time lapsed: 28376.72372484207
-#     Overall average: 4.547056894595313
-
-
-# DAY 1000:
-#     Time lapsed: 2724.0939729213715
-#     Overall average: 4.643753442281445
-# NIGHT 1000:
-#     Time lapsed: 2691.322028875351
-#     Overall average: 5.165260171280947
-
-
-######################################
+# for testing:
+# ent = get_one_entropy_val('day', 'pilot03', 18, 0.4463802, 0.5167002)
