@@ -12,6 +12,7 @@ from numpy import genfromtxt
 # for debugging, seaborn still isn't working....
 try:
     import seaborn as sns  # TODO: install seaborn
+    sns.set_style("white")
 except ModuleNotFoundError:
     print('seaborn why :(')
 # have to add this to import cv2 and matplotlib and i have no idea why
@@ -27,7 +28,7 @@ try:
 except ModuleNotFoundError:
     print(':(')
 
-sns.set()
+
 
 """
 ######## funcs in this file ########
@@ -268,12 +269,12 @@ def get_one_entropy_val(which_video, subNum, frame_num, x, y):
     ret, frame = video.read()
 
     # get x and y coords adjusted to frame
-    x_coord = int(np.around((x * h_video), decimals=0))
-    y_coord = int(np.around((1-y) * w_video, decimals=0))
+    height_coord = int(np.around((x * h_video), decimals=0))
+    width_coord = int(np.around((1-y) * w_video, decimals=0))
 
     get_ent = lambda arr: sum(arr) / 255 / 3 * max_vals[frame_num]  # where arr is array of pixel color vals TODO: check this
 
-    entropy_val = get_ent(frame[y_coord, x_coord])  # TODO: check this
+    entropy_val = get_ent(frame[height_coord, width_coord])  # TODO: check this
 
     return entropy_val
 
@@ -683,6 +684,7 @@ def get_frame_entropy_dist(which_video, frame_num):
 
     return entropy
 
+
 # doesn't work yet
 def write_animated_distribution(which_video, subNum, start_time, how_long):
     """
@@ -724,20 +726,14 @@ def write_animated_distribution(which_video, subNum, start_time, how_long):
 
     # init figure
     fig, ax = plt.subplots(figsize=(10, 6))
-    # set consistent lims so frame size doesn't change
-    ax.set_xlim(0.5, 7.5)
-    ax.set_ylim(0, 0.6)
 
-   # define interval
+    # define interval
     start_index = int(start_time * 90)
     end_index = int(start_index + (how_long * 90))
 
     def animation_frame(index):
         plt.clf()
-        # label axes/title
-        ax.set_xlabel('Entropy')
-        ax.set_ylabel('Density')
-        ax.set_title('{which} Entropy Distribution Frame by Frame'.format(which=which_video.capitalize()), size=20)
+        plt.suptitle('{which} Entropy Distribution Frame by Frame'.format(which=which_video.capitalize()), size=20)
         # get frame number
         frame_num = int(fix[3, index])
         # get distribution array
@@ -750,8 +746,14 @@ def write_animated_distribution(which_video, subNum, start_time, how_long):
             # plot entropy
             point, = plt.plot(fix_ent, 0.015, color=fix_color, marker='*', markersize=15)
             point.set_label('Fixation')
+        # set consistent lims so frame size doesn't change
+        plt.xlim(0.5, 7.5)
+        plt.ylim(0, 0.55)
+        # label axes/title
+        plt.xlabel('Entropy')
+        plt.ylabel('Density')
 
-        ax.legend(loc='upper left', facecolor='w')
+        plt.legend(loc='upper left', facecolor='w')
 
     # class matplotlib.animation.FuncAnimation(fig, func, frames=None, init_func=None, fargs=None,
     #               save_count=None, *, cache_frame_data=True, ** kwargs)[source]¶
@@ -760,25 +762,6 @@ def write_animated_distribution(which_video, subNum, start_time, how_long):
     writermp4 = animation.FFMpegWriter(fps=30)
     anim_file_name = subNum + '_' + which_video + '_dist_animation.mp4'
     anim.save(anim_file_name, writer=writermp4)
-
-    # start_frame = start_time * 30
-    # end_frame = start_frame + (how_long * 30)
-    #
-    # # for each frame
-    # for frame_num in range(start_frame, end_frame):
-    #     # get distribution array
-    #     entropy_dist = get_frame_entropy_dist(which_video, frame_num)
-    #     # get indices of possible fixations
-    #     check_these = np.where(fix[3, :] == frame_num)  # row 3 is Frame Nums
-    #     for index in check_these:
-    #         # plot distribution
-    #         sns.kdeplot(entropy_dist, shade=True, color=dist_color, label=which_video, legend=True)
-    #         # for each sample...
-    #         if fix[1, index]:
-    #             # get entropy
-    #             fix_ent = get_one_entropy_val(which_video, subNum, frame_num, fix[4, index], fix[5, index])
-    #             # plot entropy
-    #             plt.plot(fix_ent, 0, 'ro')
 
     return
 
