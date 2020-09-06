@@ -1,99 +1,44 @@
 
-from get_entropy_values import get_ave_entropy
-from get_entropy_values import get_entropy_values
-from get_entropy_values import get_min_vals
-from get_entropy_values import get_frame_entropy_dist
-from get_entropy_values import get_one_entropy_val
-from get_entropy_values import write_fix_vid_double
-from get_entropy_values import write_animated_distribution
-import os
-from numpy import genfromtxt
-import numpy as np
-import pickle
-import cv2
+# from get_entropy_values import get_ave_entropy
+# from get_entropy_values import get_entropy_values
+# from get_entropy_values import get_min_vals
+# from get_entropy_values import get_frame_entropy_dist
+# from get_entropy_values import get_one_entropy_val
+# from get_entropy_values import write_fix_vid_double
+# from get_entropy_values import write_animated_distribution
+
+# import os
+# import time
+# from numpy import genfromtxt
+# import numpy as np
+# import pickle
+# import cv2
 ######################################
 
 # ent = get_one_entropy_val('day', 'pilot03', 18, 0.4463802, 0.5167002)
-# videos are stored elsewhere; this is the path to get to them
-vid_path = '/Users/sydney/Documents/Research/SCCN/street_view_vids'
-# and the path to get back here
-return_path = '/Users/sydney/Documents/Research/SCCN/street_view'
+
+# # videos are stored elsewhere; this is the path to get to them
+# vid_path = '/Users/sydney/Documents/Research/SCCN/street_view_vids'
+# # and the path to get back here
+# return_path = '/Users/sydney/Documents/Research/SCCN/street_view'
 
 
 
-# doesn't work yet
-def get_one_lum_val(which_video, subNum, frame_num, x, y):
-
-    os.chdir(return_path)
-    # check to see if inputs entered right
-    if (which_video != "day") and (which_video != 'night'):
-        print('Parameter for "which_video" entered incorrectly; please type "day" or "night"')
-        quit()
-
-    frame_num = int(frame_num)
-
-    # get fixations  # tODO: need this?
-    fix_file = subNum + '_' + which_video + '_fix.csv'
-    fix = genfromtxt(fix_file, delimiter=',')
-
-    # change dir to get videos
-    os.chdir(vid_path)
-
-    # get video
-    vid_name = 'DOWNTOWN_' + which_video.upper() + '_grayscale.mp4'
-    video = cv2.VideoCapture(vid_name)
-
-    # get width and height of video
-    w_video = video.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
-    h_video = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
-
-    # set and read frame
-    video.set(1, frame_num)
-    ret, frame = video.read()
-
-    # get x and y coords adjusted to frame
-    height_coord = int(np.around((x * h_video), decimals=0))
-    width_coord = int(np.around((1-y) * w_video, decimals=0))
-
-    get_lum = lambda arr: sum(arr) / 255 / 3  # where arr is array of pixel color vals TODO: check this
-
-    lum_val = get_lum(frame[height_coord, width_coord])  # TODO: check this
-
-    return lum_val
 
 
-# get fixations  # tODO: need this?
-def get_fix_lum_vals(which_video, subNum):
-    os.chdir(return_path)
-
-    fix_file = subNum + '_' + which_video + '_fix.csv'
-    fix = genfromtxt(fix_file, delimiter=',')
-
-    entropies = np.zeros(5400)
-    for i in range(0, 5400):
-        if fix[0, i]:
-            frame = int(fix[3, i])
-            x = fix[4, i]
-            y = fix[5, i]
-            ent_val = get_one_lum_val(which_video, subNum, frame, x, y)
-            entropies[i] = ent_val
-        else:
-            entropies[i] = np.NaN
-
-    os.chdir(return_path)
-
-    # save as pickle
-    file_name = subNum + '_' + which_video + '_lum_fix.p'
-    pickle.dump(entropies, open(file_name, "wb"))
-
-    return entropies
-
-
-p03_day_lum_fix = get_fix_lum_vals('day', 'pilot03')
-p03_night_lum_fix = get_fix_lum_vals('night', 'pilot03')
-
-
-
+######################################
+"""
+RUN TO GENERATE ANIMATED DISTRIBUTIONS
+"""
+# conditions = {'day': 251, 'night': 244}
+# start = time.time()
+# for which, start_time in conditions.items():
+#     os.chdir(return_path)
+#     write_animated_distribution(which, 'pilot03', start_time, 10)
+#     pause = time.time()
+#     print('Finished ' + which + ' in {thismany} minutes'.format(thismany=int((pause-start)/60)))
+# print('All done!')
+######################################
 
 
 ######################################
@@ -148,6 +93,7 @@ RUN TO GENERATE RESIZED VIDEOS
 
 ######################################
 
+
 ######################################
 """
 RUN TO GENERATE GRAYSCALE VIDEOS
@@ -156,6 +102,7 @@ RUN TO GENERATE GRAYSCALE VIDEOS
 #     to_grayscale(each)
 
 ######################################
+
 
 ######################################
 """
@@ -170,7 +117,6 @@ RUN TO GET MINIMUM VALUES
 # print('Time: ' + str(timelapsed/60))
 # print('Finished')
 ######################################
-
 
 
 ######################################
@@ -234,3 +180,80 @@ RUN TO GET OVERALL AVERAGE ENTROPY/LUMINANCE FOR VIDEOS
 
 
 ######################################
+
+
+######################################
+"""
+INCOMPLETE: RUN TO GET LUMINANCE
+"""
+# # doesn't work yet
+# def get_one_lum_val(which_video, subNum, frame_num, x, y):
+#
+#     os.chdir(return_path)
+#     # check to see if inputs entered right
+#     if (which_video != "day") and (which_video != 'night'):
+#         print('Parameter for "which_video" entered incorrectly; please type "day" or "night"')
+#         quit()
+#
+#     frame_num = int(frame_num)
+#
+#     # get fixations  # tODO: need this?
+#     fix_file = subNum + '_' + which_video + '_fix.csv'
+#     fix = genfromtxt(fix_file, delimiter=',')
+#
+#     # change dir to get videos
+#     os.chdir(vid_path)
+#
+#     # get video
+#     vid_name = 'DOWNTOWN_' + which_video.upper() + '_grayscale.mp4'
+#     video = cv2.VideoCapture(vid_name)
+#
+#     # get width and height of video
+#     w_video = video.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
+#     h_video = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+#
+#     # set and read frame
+#     video.set(1, frame_num)
+#     ret, frame = video.read()
+#
+#     # get x and y coords adjusted to frame
+#     height_coord = int(np.around((x * h_video), decimals=0))
+#     width_coord = int(np.around((1-y) * w_video, decimals=0))
+#
+#     get_lum = lambda arr: sum(arr) / 255 / 3  # where arr is array of pixel color vals TODO: check this
+#
+#     lum_val = get_lum(frame[height_coord, width_coord])  # TODO: check this
+#
+#     return lum_val
+#
+#
+# # get fixations  # tODO: need this?
+# def get_fix_lum_vals(which_video, subNum):
+#     os.chdir(return_path)
+#
+#     fix_file = subNum + '_' + which_video + '_fix.csv'
+#     fix = genfromtxt(fix_file, delimiter=',')
+#
+#     entropies = np.zeros(5400)
+#     for i in range(0, 5400):
+#         if fix[0, i]:
+#             frame = int(fix[3, i])
+#             x = fix[4, i]
+#             y = fix[5, i]
+#             ent_val = get_one_lum_val(which_video, subNum, frame, x, y)
+#             entropies[i] = ent_val
+#         else:
+#             entropies[i] = np.NaN
+#
+#     os.chdir(return_path)
+#
+#     # save as pickle
+#     file_name = subNum + '_' + which_video + '_lum_fix.p'
+#     pickle.dump(entropies, open(file_name, "wb"))
+#
+#     return entropies
+#
+#
+# p03_day_lum_fix = get_fix_lum_vals('day', 'pilot03')
+# p03_night_lum_fix = get_fix_lum_vals('night', 'pilot03')
+#
