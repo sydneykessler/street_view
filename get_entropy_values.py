@@ -11,7 +11,7 @@ import csv
 from numpy import genfromtxt
 # for debugging, seaborn still isn't working....
 try:
-    import seaborn as sns  # TODO: install seaborn
+    import seaborn as sns
     sns.set_style("white")
 except ModuleNotFoundError:
     print('seaborn why :(')
@@ -21,7 +21,6 @@ try:
     import cv2  # import cv2xxx
 except ModuleNotFoundError:
      print('cv2 epic fail :(')
-
 try:
     from matplotlib import pyplot as plt
     from matplotlib import animation
@@ -136,6 +135,12 @@ def get_ave_entropy(which_video, which_color):
 
 
 def get_min_vals(which_video):
+    """
+    given a video, returns the minimum entropy values of each frame within that video
+    :param which_video: str, 'day' or 'night'
+    :return min_vals: np.array of minimum values
+            timelapsed: float, how long it took
+    """
     start = time.time()
 
     # change dir to get videos
@@ -234,9 +239,17 @@ def reorg_fix(file):
 
     return master, timelapsed
 
-# doesn't work yet
-def get_one_entropy_val(which_video, subNum, frame_num, x, y):
 
+def get_one_entropy_val(which_video, subNum, frame_num, x, y):
+    """
+    given a sample from fixations.csv, returns the entropy value at that point (for use in write_animated_distribution)
+    :param which_video: str, 'day' or 'night' only
+    :param subNum: str, like 'pilot03;
+    :param frame_num: int, which frame of video (fix[3,:])
+    :param x: float, normalized x value fix[4,:])
+    :param y: float, normalized y value (where 0 is at bottom of frame) fix[5,:])
+    :return:
+    """
     os.chdir(return_path)
     # check to see if inputs entered right
     if (which_video != "day") and (which_video != 'night'):
@@ -662,7 +675,7 @@ def get_frame_entropy_dist(which_video, frame_num):
     ret, frame = video.read()
 
     # func to get entropy
-    get_ent = lambda arr: sum(arr) / 255 / 3 * frame_max  # where arr is array of pixel color vals % TODO: ok this is definitely wrong
+    get_ent = lambda arr: sum(arr) / 255 / 3 * frame_max  # where arr is array of pixel color vals
 
     count = 0
     # loop through every pixel in frame
@@ -685,7 +698,6 @@ def get_frame_entropy_dist(which_video, frame_num):
     return entropy
 
 
-# doesn't work yet
 def write_animated_distribution(which_video, subNum, start_time, how_long):
     """
     generate .mp4 animation of changing distribution of full frame + where fixation is in that distribution
@@ -739,12 +751,13 @@ def write_animated_distribution(which_video, subNum, start_time, how_long):
         # get distribution array
         entropy_dist = get_frame_entropy_dist(which_video, frame_num)
         # plot
-        sns.kdeplot(entropy_dist, shade=True, color=dist_color, label='Distribution of Entropy', legend=True)
-        if fix[1, index]:
+        dist = sns.kdeplot(entropy_dist, shade=True, color=dist_color, label='Distribution of Entropy', legend=True)
+        if fix[0, index]:
             # get entropy
             fix_ent = get_one_entropy_val(which_video, subNum, frame_num, fix[4, index], fix[5, index])
             # plot entropy
             point, = plt.plot(fix_ent, 0.015, color=fix_color, marker='*', markersize=15)
+            last_point = fix_ent
             point.set_label('Fixation')
         # set consistent lims so frame size doesn't change
         plt.xlim(0.5, 7.5)
